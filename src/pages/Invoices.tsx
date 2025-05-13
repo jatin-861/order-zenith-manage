@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
@@ -36,7 +35,10 @@ import {
   Download, 
   Send,
   Calendar,
-  Printer
+  Printer,
+  Trash,
+  Plus,
+  Package
 } from "lucide-react";
 import {
   Select,
