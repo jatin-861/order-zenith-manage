@@ -72,7 +72,7 @@ const sampleProducts: Product[] = [
     id: "PRD-001",
     name: "Boiler System - 500kg/hr",
     category: "Boilers",
-    price: 999,
+    price: 75000,
     stock: 12,
     status: "In Stock",
     type: "Product",
@@ -83,7 +83,7 @@ const sampleProducts: Product[] = [
     id: "PRD-002",
     name: "Heat Exchanger - HX2000",
     category: "Heat Exchangers",
-    price: 1299,
+    price: 89000,
     stock: 8,
     status: "In Stock",
     type: "Product",
@@ -94,7 +94,7 @@ const sampleProducts: Product[] = [
     id: "PRD-003",
     name: "Thermic Fluid Heater",
     category: "Heaters",
-    price: 249,
+    price: 18500,
     stock: 3,
     status: "Low Stock",
     type: "Product",
@@ -105,7 +105,7 @@ const sampleProducts: Product[] = [
     id: "PRD-004",
     name: "Industrial Hot Water Generator",
     category: "Water Heaters",
-    price: 799,
+    price: 58000,
     stock: 0,
     status: "Out of Stock",
     type: "Product",
@@ -117,7 +117,7 @@ const sampleProducts: Product[] = [
     id: "RAW-001",
     name: "Stainless Steel Screws M10",
     category: "Fasteners",
-    price: 0.5,
+    price: 35,
     stock: 150,
     status: "In Stock",
     type: "Raw Material",
@@ -128,7 +128,7 @@ const sampleProducts: Product[] = [
     id: "RAW-002",
     name: "Copper Tubing 15mm",
     category: "Piping",
-    price: 12,
+    price: 850,
     stock: 45,
     status: "In Stock",
     type: "Raw Material",
@@ -139,7 +139,7 @@ const sampleProducts: Product[] = [
     id: "RAW-003",
     name: "Control Valve 2\"",
     category: "Controls",
-    price: 89,
+    price: 6500,
     stock: 7,
     status: "Low Stock",
     type: "Raw Material",
@@ -150,7 +150,7 @@ const sampleProducts: Product[] = [
     id: "RAW-004",
     name: "Pressure Gauge 0-10 Bar",
     category: "Instrumentation",
-    price: 35,
+    price: 2500,
     stock: 3,
     status: "Low Stock",
     type: "Raw Material",
@@ -161,7 +161,7 @@ const sampleProducts: Product[] = [
     id: "RAW-005",
     name: "Temperature Sensor PT100",
     category: "Instrumentation",
-    price: 42,
+    price: 2900,
     stock: 2,
     status: "Low Stock",
     type: "Raw Material",
@@ -237,7 +237,7 @@ const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, edi
         </div>
         <div className="form-group">
           <label htmlFor="product-price" className="text-sm font-medium text-gray-700">
-            Price
+            Price (₹)
           </label>
           <Input 
             id="product-price" 
@@ -410,6 +410,23 @@ const Products = () => {
     }
   }, [activeTab]);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // The filtering is already happening dynamically, but we could add additional logic here
+    toast({
+      title: "Search Results",
+      description: `Found ${filteredProducts.length} product(s) matching "${searchTerm}"`,
+    });
+  };
+
+  const generatePDF = () => {
+    // In a real app, this would generate a PDF
+    toast({
+      title: "PDF Generated",
+      description: "Low stock items report has been generated",
+    });
+  };
+
   return (
     <Layout>
       <div className="flex justify-between items-center mb-6">
@@ -478,7 +495,7 @@ const Products = () => {
         <Card>
           <div className="p-4 border-b">
             <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-              <div className="relative w-full md:max-w-sm">
+              <form onSubmit={handleSearch} className="relative w-full md:max-w-sm flex">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   type="search"
@@ -487,10 +504,11 @@ const Products = () => {
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
-              </div>
+                <Button type="submit" className="ml-2">Search</Button>
+              </form>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
-                  Export
+                <Button variant="outline" size="sm" onClick={generatePDF}>
+                  Export PDF
                 </Button>
                 <Button variant="outline" size="sm">
                   Print
@@ -550,7 +568,7 @@ const Products = () => {
                           {product.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">${product.price}</TableCell>
+                      <TableCell className="text-right">₹{product.price.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end">
                           <span>{product.stock}</span>
