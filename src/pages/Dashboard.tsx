@@ -9,7 +9,8 @@ import {
   FileText, 
   ArrowUpRight, 
   ArrowDownRight,
-  BadgeDollarSign
+  BadgeDollarSign,
+  Download
 } from "lucide-react";
 import {
   AreaChart,
@@ -23,46 +24,54 @@ import {
   Bar,
   Cell
 } from "recharts";
+import { Button } from "@/components/ui/button";
 
-// Sample data for charts
+// Sample data for charts with boiler-related data
 const salesData = [
-  { name: "Jan", total: 2400 },
-  { name: "Feb", total: 1398 },
-  { name: "Mar", total: 9800 },
-  { name: "Apr", total: 3908 },
-  { name: "May", total: 4800 },
-  { name: "Jun", total: 3800 },
+  { name: "Jan", total: 240000 },
+  { name: "Feb", total: 139800 },
+  { name: "Mar", total: 980000 },
+  { name: "Apr", total: 390800 },
+  { name: "May", total: 480000 },
+  { name: "Jun", total: 380000 },
 ];
 
 const inventoryData = [
-  { name: "Laptops", value: 30 },
-  { name: "Phones", value: 45 },
-  { name: "Tablets", value: 20 },
-  { name: "Accessories", value: 65 },
-  { name: "Monitors", value: 15 },
+  { name: "Boiler Systems", value: 30 },
+  { name: "Heat Exchangers", value: 45 },
+  { name: "Thermic Fluid Heaters", value: 20 },
+  { name: "Hot Water Generators", value: 65 },
+  { name: "Control Components", value: 15 },
 ];
 
 const recentInvoices = [
-  { id: "INV-001", customer: "Acme Inc.", date: "May 12, 2025", amount: 1540 },
-  { id: "INV-002", customer: "Globex Corp", date: "May 11, 2025", amount: 2300 },
-  { id: "INV-003", customer: "Wayne Enterprises", date: "May 10, 2025", amount: 4100 },
-  { id: "INV-004", customer: "Stark Industries", date: "May 09, 2025", amount: 780 },
+  { id: "INV-001", customer: "Jindal Steel", date: "May 12, 2025", amount: 154000 },
+  { id: "INV-002", customer: "Tata Industries", date: "May 11, 2025", amount: 230000 },
+  { id: "INV-003", customer: "Reliance Energy", date: "May 10, 2025", amount: 410000 },
+  { id: "INV-004", customer: "Adani Power", date: "May 09, 2025", amount: 78000 },
 ];
 
 const lowStockProducts = [
-  { id: "PRD-001", name: "iPhone 16 Pro", stock: 3, threshold: 5 },
-  { id: "PRD-002", name: "MacBook Air M3", stock: 2, threshold: 5 },
-  { id: "PRD-003", name: "AirPods Pro", stock: 4, threshold: 10 },
+  { id: "PRD-001", name: "Boiler System - 500kg/hr", stock: 3, threshold: 5 },
+  { id: "RAW-001", name: "Stainless Steel Screws M10", stock: 2, threshold: 5 },
+  { id: "RAW-003", name: "Control Valve 2\"", stock: 4, threshold: 10 },
 ];
 
 const COLORS = ['#2c5282', '#3182ce', '#4299e1', '#63b3ed', '#90cdf4'];
 
 const Dashboard = () => {
+  const downloadLowStockPDF = () => {
+    // In a real implementation, this would generate a PDF
+    console.log("Generating low stock PDF report");
+    // PDF generation would happen here
+    alert("Low stock PDF report downloaded");
+  };
+
   return (
     <Layout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Welcome to your inventory control center</p>
+        <p className="text-gray-500">Welcome to your boiler inventory control center</p>
       </div>
 
       {/* Stats Overview */}
@@ -123,7 +132,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-baseline">
-            <span className="stat-value">$14.8k</span>
+            <span className="stat-value">₹14.8L</span>
             <span className="ml-2 flex items-center text-red-500 text-sm">
               <ArrowDownRight className="h-4 w-4 mr-1" />
               3%
@@ -154,7 +163,7 @@ const Dashboard = () => {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <CartesianGrid strokeDasharray="3 3" />
-                <Tooltip />
+                <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
                 <Area
                   type="monotone"
                   dataKey="total"
@@ -217,7 +226,7 @@ const Dashboard = () => {
                     <td className="font-medium text-brand-600">{invoice.id}</td>
                     <td>{invoice.customer}</td>
                     <td>{invoice.date}</td>
-                    <td>${invoice.amount.toLocaleString()}</td>
+                    <td>₹{invoice.amount.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -226,10 +235,22 @@ const Dashboard = () => {
         </Card>
 
         <Card className="dashboard-card">
-          <h3 className="font-medium text-gray-700 mb-4 flex items-center">
-            <Package className="h-5 w-5 mr-2 text-brand-600" />
-            Low Stock Products
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium text-gray-700 flex items-center">
+              <Package className="h-5 w-5 mr-2 text-brand-600" />
+              Low Stock Products
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadLowStockPDF}
+              className="flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
+          
           <div className="table-container">
             <table className="data-table">
               <thead>
