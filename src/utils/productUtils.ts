@@ -1,70 +1,10 @@
 
-import { Product } from "@/types/product";
+// This file provides the raw material list as the source of products to be inserted into supabase.
+// This is used only to seed the database initially.
 
-// Sample products from inventory
-export const sampleProducts: Product[] = [
-  {
-    id: "PRD-001",
-    name: "Boiler System - 500kg/hr",
-    category: "Boilers",
-    price: 75000,
-    stock: 12,
-    status: "In Stock",
-  },
-  {
-    id: "PRD-002",
-    name: "Heat Exchanger - HX2000",
-    category: "Heat Exchangers",
-    price: 89000,
-    stock: 8,
-    status: "In Stock",
-  },
-  {
-    id: "PRD-003",
-    name: "Thermic Fluid Heater",
-    category: "Heaters",
-    price: 18500,
-    stock: 3,
-    status: "Low Stock",
-  },
-  {
-    id: "PRD-004",
-    name: "Industrial Hot Water Generator",
-    category: "Water Heaters",
-    price: 58000,
-    stock: 0,
-    status: "Out of Stock",
-  },
-  {
-    id: "PRD-005",
-    name: "Stainless Steel Screws M10",
-    category: "Fasteners",
-    price: 35,
-    stock: 150,
-    status: "In Stock",
-  },
-  {
-    id: "PRD-006",
-    name: "Copper Tubing 15mm",
-    category: "Piping",
-    price: 850,
-    stock: 45,
-    status: "In Stock",
-  },
-  {
-    id: "PRD-007",
-    name: "Control Valve 2\"",
-    category: "Controls",
-    price: 6500,
-    stock: 7,
-    status: "Low Stock",
-  },
-  {
-    id: "PRD-008",
-    name: "Pressure Gauge 0-10 Bar",
-    category: "Instrumentation",
-    price: 2500,
-    stock: 3,
-    status: "Low Stock",
-  },
+export const rawMaterialNames: string[] = [
+  "Acoset", "A C Sheets", "Ador Superbond", "Air Heater", "Air Setting Mortar", "Alliminium Coil", "Alloy Steel", "Alluminium Lebal", "Aluminium Sheets", "Argon Gas", "Ball Val", "Bobin Heater", "BODM", "BOILER TI", "Boiler Ti-Mtr", "BOSM", "Box Packing", "Brong Fudible Plug", "Bucket", "Burner Controller", "CAGE", "Calderys Fire Set Fine", "Calderys Whytheat-K", "Capactor", "Carbon Brush", "C C Steel Coil", "Ceramic Bobbin Heater", "Ceramic Fiber Blanket", "Ceramic Wool Roll", "Chopsaw", "Choras", "C I Casting", "C I Couple", "C I Fire Bar", "C I Gauge Glass Cock", "C I Moisture", "CIV Belt Pulley", "Coated Coil", "Conveyor Belt", "Copper Pipe-ft", "Cor Cable", "Coupling", "CRCA Tube", "C R Pipe", "C S Blow", "C S Flang", "C S Pipe", "C S PRV", "C S Stranier", "C.S Tube 38.1", "C.S.Tube 44.5", "C.S.Tube 63.5", "Cut Off Wheel", "Cutting Disc", "D C Wheel", "DDS", "Diapharm", "Drive", "Elcb", "Electrical Control Panel", "Electric Cable", "Electric Motor-0.5 HP", "Electric Motor-10 HP", "Electric Motor- 12.5HP", "Electric Motor-1HP", "Electric Motor-20 HP", "Electric Motor 25 Hp", "Electric Motor-2HP", "Electric Motor-30HP", "Electric Motor 5HP", "Electric Motor-7.5HP", "Electric Motors 2 HP", "Electric Motors 3 HP", "Electric Motors-40 HP", "Electric Motos 15 HP", "Electric Motot-60hp", "Electric Wire Rope Hoist", "Ele Motor-75 Hp", "Eletric Motor-12.5HP", "Endtuper", "Engine", "ERW Boiler Tube", "ETNY", "F G Wire", "Fire Bar", "Fire Bricks", "Fire Clay", "Fire Crete Super", "Fire Vlay Mortsr Kg", "Float Switch", "Flow Meter", "Forged Bar", "Foundation Bilt", "Fuel Unit", "Gas Burner", "Gauge Glass Pair", "Gear Box", "Gear Motor", "G I Chenal", "G I Wire", "G L Sheet", "Gp Sheet", "Heat-50", "Heat-K", "Heat Mx", "Heat Super", "Heat Transfer Fluid", "Hexagoneal Wirenetting Roll", "H R Plats", "H R Sheets", "Hub", "I D Fan", "Immersion Heater", "Indfos", "Insulation Bricks", "ISMT", "Leval Controler", "Long Bend", "LPG GAS", "LRB", "LRB-Mtr", "LRB Sheet", "Mineral Wool", "Modulating Motor", "Monocast-K", "Monoset-50", "M S Angal", "M S Bar", "M S Beam", "M S Bend", "M S Chenal", "M S Elbow", "M S Erw", "M S Flange", "M S Flats", "M S Foundation Boit", "MSL", "M S PAT", "M S Pipe-Foot", "M S Pipe-Kgs", "M S Pipe-Mtr", "M S Pipe-Nos", "M S Plate", "M S Round", "M S Sheet", "M S Tee", "MS TMT", "NDAL", "Output Terminal (Insulator)", "Over Load Relay", "Oxygen", "Paints", "Parts", "PBLRB", "Pendestal", "Photocell", "Pid Controller", "Plate Mill Plate", "P M Plates", "Polycarbonate Sheet", "Positioner Controller", "Precision Tubes", "Pressure Gauge", "Pressure Regulator", "Pressure Switch", "PTFE Coated Fiber Glass Bag", "Pump", "Pusher Feeder", "RAV", "Reducer", "Refractory", "Ridge C", "S A Round Bar", "SCREW", "Seamless Pipe", "Seamless Pipe-Mtr", "Side Mountied Controller", "Side Taper", "Slipon Flange", "S S Gauge Glass Coco", "S S Nozzls", "S S Pipe", "S S Sheet", "Standar Bricks", "Starblaze", "Startor", "Stay Bar", "STD", "Steam Trap", "Steel Plate", "Steel Tubes", "Steel Tubes-Kgs", "Store and Spare", "Strainer", "Stud", "Super Castable", "Switch", "UV Detector", "Valve", "Washer", "Water Controller", "Water Leval Gauge", "Water Pump", "Welding Glass", "Welding Road-Pkt", "Welding Rod-Kg", "Welding Rod-Nos", "Whytehea 25kg Bag", "C R C Sheet", "Cyclone", "High Temp Synthetic Oil", "IBR", "Mobary Switch", "Radiant Coil", "Roffing Sheet", "Screw Feeder", "Synthetic Thermic Fluid", "Welding Road", "Wood Pellet Burne"
 ];
+
+// Provide empty array for now as db products will be loaded dynamically
+export const sampleProducts = [];

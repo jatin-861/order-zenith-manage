@@ -9,7 +9,149 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          address: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      invoice_items: {
+        Row: {
+          id: string
+          invoice_id: string | null
+          price: number
+          product_id: string | null
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          invoice_id?: string | null
+          price: number
+          product_id?: string | null
+          quantity: number
+        }
+        Update: {
+          id?: string
+          invoice_id?: string | null
+          price?: number
+          product_id?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          customer_id: string | null
+          date: string
+          due_date: string | null
+          id: string
+          status: string | null
+          total_amount: number | null
+        }
+        Insert: {
+          customer_id?: string | null
+          date?: string
+          due_date?: string | null
+          id?: string
+          status?: string | null
+          total_amount?: number | null
+        }
+        Update: {
+          customer_id?: string | null
+          date?: string
+          due_date?: string | null
+          id?: string
+          status?: string | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          id: string
+          min_stock_level: number | null
+          name: string
+          price: number | null
+          stock: number | null
+        }
+        Insert: {
+          category?: string | null
+          id?: string
+          min_stock_level?: number | null
+          name: string
+          price?: number | null
+          stock?: number | null
+        }
+        Update: {
+          category?: string | null
+          id?: string
+          min_stock_level?: number | null
+          name?: string
+          price?: number | null
+          stock?: number | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          id: string
+          password_hash: string
+          username: string
+        }
+        Insert: {
+          id?: string
+          password_hash: string
+          username: string
+        }
+        Update: {
+          id?: string
+          password_hash?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

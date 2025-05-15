@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
@@ -51,6 +50,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { rawMaterialNames } from "@/utils/productUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
   id: string;
@@ -66,109 +67,35 @@ interface Product {
   supplierInfo?: string;
 }
 
-// Sample products imported from heatmax.in (simulated)
-const sampleProducts: Product[] = [
-  {
-    id: "PRD-001",
-    name: "Boiler System - 500kg/hr",
-    category: "Boilers",
-    price: 75000,
-    stock: 12,
-    status: "In Stock",
-    type: "Product",
-    image: "https://www.heatmax.in/wp-content/uploads/2018/05/Boiler-Room-Coalescer-1-New-742x1024.jpg",
-    description: "Industrial boiler system with capacity of 500kg/hr steam generation, with automatic temperature control."
-  },
-  {
-    id: "PRD-002",
-    name: "Heat Exchanger - HX2000",
-    category: "Heat Exchangers",
-    price: 89000,
-    stock: 8,
-    status: "In Stock",
-    type: "Product",
-    image: "https://www.heatmax.in/wp-content/uploads/2018/05/Heat-Exchanger-P3-386x309.jpg",
-    description: "High efficiency plate heat exchanger suitable for HVAC and industrial applications."
-  },
-  {
-    id: "PRD-003",
-    name: "Thermic Fluid Heater",
-    category: "Heaters",
-    price: 18500,
-    stock: 3,
-    status: "Low Stock",
-    type: "Product",
-    image: "https://www.heatmax.in/wp-content/uploads/2018/05/thermic.jpg",
-    description: "Thermic fluid heater for industrial applications requiring precise temperature control."
-  },
-  {
-    id: "PRD-004",
-    name: "Industrial Hot Water Generator",
-    category: "Water Heaters",
-    price: 58000,
-    stock: 0,
-    status: "Out of Stock",
-    type: "Product",
-    image: "https://www.heatmax.in/wp-content/uploads/2018/05/hwg-300x150.jpg",
-    description: "Hot water generator for commercial and industrial applications."
-  },
-  // Raw Materials
-  {
-    id: "RAW-001",
-    name: "Stainless Steel Screws M10",
-    category: "Fasteners",
-    price: 35,
-    stock: 150,
-    status: "In Stock",
-    type: "Raw Material",
-    minStockLevel: 100,
-    supplierInfo: "Metal Supplies Inc."
-  },
-  {
-    id: "RAW-002",
-    name: "Copper Tubing 15mm",
-    category: "Piping",
-    price: 850,
-    stock: 45,
-    status: "In Stock",
-    type: "Raw Material",
-    minStockLevel: 40,
-    supplierInfo: "Copper Solutions Ltd."
-  },
-  {
-    id: "RAW-003",
-    name: "Control Valve 2\"",
-    category: "Controls",
-    price: 6500,
-    stock: 7,
-    status: "Low Stock",
-    type: "Raw Material",
-    minStockLevel: 10,
-    supplierInfo: "Valve Technologies"
-  },
-  {
-    id: "RAW-004",
-    name: "Pressure Gauge 0-10 Bar",
-    category: "Instrumentation",
-    price: 2500,
-    stock: 3,
-    status: "Low Stock",
-    type: "Raw Material",
-    minStockLevel: 15,
-    supplierInfo: "Instrument Supplies Co."
-  },
-  {
-    id: "RAW-005",
-    name: "Temperature Sensor PT100",
-    category: "Instrumentation",
-    price: 2900,
-    stock: 2,
-    status: "Low Stock",
-    type: "Raw Material",
-    minStockLevel: 10,
-    supplierInfo: "Sensor Tech Ltd."
-  },
-];
+// NEW: useSupabaseProducts hook to fetch & add initial raw materials list
+function useSupabaseProducts() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAndSeed = async () => {
+      setLoading(true);
+      // Check if db is empty, if empty, batch insert all rawMaterialNames
+      let { data: dbProducts, error } = await supabase.from("products").select("*");
+      if (!dbProducts || dbProducts.length === 0) {
+        // Batch insert all products if not present
+        const items = rawMaterialNames.map(name => ({
+          name,
+          category: "Raw Material",
+          price: 0,
+          stock: 0,
+          min_stock_level: 5,
+        }));
+        await supabase.from("products").insert(items);
+        dbProducts = (await supabase.from("products").select("*")).data;
+      }
+      setProducts(dbProducts || []);
+      setLoading(false);
+    };
+    fetchAndSeed();
+  }, []);
+  return { products, setProducts, loading };
+}
 
 const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, editProduct?: Product | null }) => {
   const [product, setProduct] = useState<Partial<Product>>(editProduct || {
@@ -339,14 +266,18 @@ const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, edi
 };
 
 const Products = () => {
+  const { products: filteredProducts, setProducts, loading } = useSupabaseProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "products" | "materials" | "low-stock">("all");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
 
+  // Only allow admin add/edit/delete if admin session exists:
+  const isAdmin = localStorage.getItem("adminSession") === "true";
+
   // Filter products based on search term and active tab
-  const filteredProducts = sampleProducts.filter(product => {
+  const filteredProducts = filteredProducts.filter(product => {
     // Text search
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -369,7 +300,7 @@ const Products = () => {
   });
 
   // Count the number of low stock items
-  const lowStockCount = sampleProducts.filter(product => {
+  const lowStockCount = filteredProducts.filter(product => {
     if (product.type === "Raw Material") {
       return product.stock <= (product.minStockLevel || 0);
     } else {
@@ -579,22 +510,24 @@ const Products = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(product)}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem className="flex items-center" onClick={() => handleEditProduct(product)}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="flex items-center text-red-600">
-                              <Trash className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {isAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem className="flex items-center" onClick={() => handleEditProduct(product)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="flex items-center text-red-600">
+                                <Trash className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
