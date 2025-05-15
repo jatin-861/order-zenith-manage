@@ -50,6 +50,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import FuturisticLoader from "@/components/Loader";
 import { rawMaterialNames } from "@/utils/productUtils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -67,29 +68,62 @@ interface Product {
   supplierInfo?: string;
 }
 
-// NEW: useSupabaseProducts hook to fetch & add initial raw materials list
+// Util for random stock
+function randomStock() { return Math.floor(Math.random() * 80) + 10; }
+
+// Get full HEATMAX product list (simulate for now)
+const HEATMAX_PRODUCTS = [
+  { name: "Steam Boiler", category: "Boiler" },
+  { name: "Thermic Fluid Heater", category: "Heater" },
+  { name: "Heat Exchanger", category: "Heat Equipment" },
+  { name: "Hot Air Generator", category: "Generator" },
+  { name: "Hot Water Boiler", category: "Boiler" },
+  { name: "Industrial Burner", category: "Burner" },
+  { name: "Furnace", category: "Furnace" },
+  // ... extend for each Heatmax.in product as you need
+];
+
+// Updated: useSupabaseProducts hook
 function useSupabaseProducts() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAndSeed = async () => {
       setLoading(true);
-      // Check if db is empty, if empty, batch insert all rawMaterialNames
       let { data: dbProducts, error } = await supabase.from("products").select("*");
+
       if (!dbProducts || dbProducts.length === 0) {
-        // Batch insert all products if not present
-        const items = rawMaterialNames.map(name => ({
+        // Prepare raw materials (from prop & utility)
+        const rawMaterials = rawMaterialNames.map(name => ({
           name,
           category: "Raw Material",
           price: 0,
-          stock: 0,
+          stock: randomStock(),
           min_stock_level: 5,
+          type: "Raw Material",
         }));
-        await supabase.from("products").insert(items);
+
+        // Prepare heatmax.in products (sampled above)
+        const heatmaxProducts = HEATMAX_PRODUCTS.map(p => ({
+          name: p.name,
+          category: p.category,
+          price: Math.floor(Math.random() * 50000) + 8000, // random price
+          stock: randomStock(),
+          min_stock_level: 10,
+          type: "Product",
+        }));
+
+        const allSeed = [...rawMaterials, ...heatmaxProducts];
+
+        await supabase.from("products").insert(allSeed);
         dbProducts = (await supabase.from("products").select("*")).data;
       }
-      setProducts(dbProducts || []);
+      // Add 'type' to classify legacy products
+      setProducts((dbProducts || []).map(p => ({
+        ...p,
+        type: p.category === "Raw Material" ? "Raw Material" : "Product"
+      })));
       setLoading(false);
     };
     fetchAndSeed();
@@ -97,209 +131,70 @@ function useSupabaseProducts() {
   return { products, setProducts, loading };
 }
 
-const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, editProduct?: Product | null }) => {
-  const [product, setProduct] = useState<Partial<Product>>(editProduct || {
-    type: "Product",
-    status: "In Stock"
-  });
-  
-  const handleChange = (key: keyof Product, value: any) => {
-    setProduct(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleSubmit = () => {
-    onClose();
-    // In a real app, this would save to the database
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="form-group">
-        <label htmlFor="product-name" className="text-sm font-medium text-gray-700">
-          Product Name
-        </label>
-        <Input 
-          id="product-name" 
-          placeholder="Enter product name" 
-          value={product.name || ''}
-          onChange={(e) => handleChange('name', e.target.value)}
-        />
-      </div>
-      
-      <div className="form-group">
-        <label className="text-sm font-medium text-gray-700">Type</label>
-        <div className="flex items-center space-x-4 mt-1">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input 
-              type="radio" 
-              checked={product.type === "Product"} 
-              onChange={() => handleChange('type', 'Product')}
-              className="form-radio h-4 w-4 text-blue-600"
-            />
-            <span>Product</span>
-          </label>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input 
-              type="radio" 
-              checked={product.type === "Raw Material"} 
-              onChange={() => handleChange('type', 'Raw Material')}
-              className="form-radio h-4 w-4 text-blue-600"
-            />
-            <span>Raw Material</span>
-          </label>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="form-group">
-          <label htmlFor="product-category" className="text-sm font-medium text-gray-700">
-            Category
-          </label>
-          <Input 
-            id="product-category" 
-            placeholder="Category" 
-            value={product.category || ''}
-            onChange={(e) => handleChange('category', e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="product-price" className="text-sm font-medium text-gray-700">
-            Price (₹)
-          </label>
-          <Input 
-            id="product-price" 
-            type="number" 
-            placeholder="0.00" 
-            value={product.price || ''}
-            onChange={(e) => handleChange('price', parseFloat(e.target.value))}
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="form-group">
-          <label htmlFor="product-stock" className="text-sm font-medium text-gray-700">
-            Stock Quantity
-          </label>
-          <Input 
-            id="product-stock" 
-            type="number" 
-            placeholder="0" 
-            value={product.stock || ''}
-            onChange={(e) => handleChange('stock', parseInt(e.target.value))}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="product-sku" className="text-sm font-medium text-gray-700">
-            SKU
-          </label>
-          <Input 
-            id="product-sku" 
-            placeholder="PRD-001" 
-            value={product.id || ''}
-            onChange={(e) => handleChange('id', e.target.value)}
-          />
-        </div>
-      </div>
-      
-      {product.type === "Raw Material" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="form-group">
-            <label htmlFor="min-stock-level" className="text-sm font-medium text-gray-700">
-              Minimum Stock Level
-            </label>
-            <Input 
-              id="min-stock-level" 
-              type="number" 
-              placeholder="0" 
-              value={product.minStockLevel || ''}
-              onChange={(e) => handleChange('minStockLevel', parseInt(e.target.value))}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="supplier-info" className="text-sm font-medium text-gray-700">
-              Supplier Information
-            </label>
-            <Input 
-              id="supplier-info" 
-              placeholder="Supplier name" 
-              value={product.supplierInfo || ''}
-              onChange={(e) => handleChange('supplierInfo', e.target.value)}
-            />
-          </div>
-        </div>
-      )}
-      
-      <div className="form-group">
-        <label htmlFor="product-image" className="text-sm font-medium text-gray-700">
-          Image URL
-        </label>
-        <Input 
-          id="product-image" 
-          placeholder="https://example.com/image.jpg" 
-          value={product.image || ''}
-          onChange={(e) => handleChange('image', e.target.value)}
-        />
-      </div>
-      
-      <div className="form-group">
-        <label htmlFor="product-description" className="text-sm font-medium text-gray-700">
-          Description
-        </label>
-        <textarea 
-          id="product-description" 
-          className="flex h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          placeholder="Product description"
-          value={product.description || ''}
-          onChange={(e) => handleChange('description', e.target.value)}
-        ></textarea>
-      </div>
-      
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit}>Save Product</Button>
-      </DialogFooter>
-    </div>
-  );
-};
-
+// PRODUCT CRUD
 const Products = () => {
-  // --- We rename from { products: filteredProducts, ... } to { products, ... }
   const { products, setProducts, loading } = useSupabaseProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "products" | "materials" | "low-stock">("all");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Only allow admin add/edit/delete if admin session exists:
   const isAdmin = localStorage.getItem("adminSession") === "true";
 
-  // This is now our computed list, avoiding redeclaration problem
+  // Add new product
+  const handleAddOrEditProduct = async (values: Partial<Product>) => {
+    if (!values.name || !values.category) {
+      toast({ title: "Invalid", description: "Name and Category required", variant: "destructive" }); return;
+    }
+    let result;
+    if (editingProduct) {
+      result = await supabase.from("products").update({
+        ...values,
+        type: values.category === "Raw Material" ? "Raw Material" : "Product",
+      }).eq("id", editingProduct.id).select();
+      toast({ title: "Product Updated" });
+    } else {
+      result = await supabase.from("products").insert([{
+        ...values,
+        type: values.category === "Raw Material" ? "Raw Material" : "Product",
+      }]).select();
+      toast({ title: "Product Added" });
+    }
+    if (!result.error) {
+      setProducts(await (await supabase.from("products").select("*")).data);
+      setOpenDialog(false);
+      setEditingProduct(null);
+    }
+  };
+
+  // Delete product
+  const handleDeleteProduct = async (pid: string) => {
+    setDeletingId(pid);
+    await supabase.from("products").delete().eq("id", pid);
+    setProducts((await supabase.from("products").select("*")).data || []);
+    setDeletingId(null);
+    toast({ title: "Product Deleted" });
+  };
+
+  // Filter logic
   const filteredProducts = products.filter(product => {
-    // Text search
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Tab filter
+    const matchesSearch =
+      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.id?.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (activeTab === "all") return matchesSearch;
     if (activeTab === "products") return matchesSearch && product.type === "Product";
     if (activeTab === "materials") return matchesSearch && product.type === "Raw Material";
     if (activeTab === "low-stock") {
-      if (product.type === "Raw Material") {
-        return matchesSearch && (product.stock <= (product.minStockLevel || 0));
-      } else {
-        return matchesSearch && (product.status === "Low Stock" || product.status === "Out of Stock");
-      }
+      if (product.type === "Raw Material") return matchesSearch && (product.stock <= (product.min_stock_level || 0));
+      else return matchesSearch && (product.stock <= (product.min_stock_level || 0));
     }
     return matchesSearch;
   });
 
-  // Count the number of low stock items
   const lowStockCount = filteredProducts.filter(product => {
     if (product.type === "Raw Material") {
       return product.stock <= (product.minStockLevel || 0);
@@ -308,13 +203,11 @@ const Products = () => {
     }
   }).length;
 
-  // For editing a product
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setOpenDialog(true);
   };
 
-  // Get status badge
   const getStatusBadge = (product: Product) => {
     if (product.type === "Raw Material" && product.minStockLevel && product.stock <= product.minStockLevel) {
       return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Low Stock</Badge>;
@@ -330,7 +223,6 @@ const Products = () => {
     }
   };
 
-  // For demo purposes - show an alert when viewing low stock items
   useEffect(() => {
     if (activeTab === "low-stock" && lowStockCount > 0) {
       toast({
@@ -343,7 +235,6 @@ const Products = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // The filtering is already happening dynamically, but we could add additional logic here
     toast({
       title: "Search Results",
       description: `Found ${filteredProducts.length} product(s) matching "${searchTerm}"`,
@@ -351,12 +242,181 @@ const Products = () => {
   };
 
   const generatePDF = () => {
-    // In a real app, this would generate a PDF
     toast({
       title: "PDF Generated",
       description: "Low stock items report has been generated",
     });
   };
+
+  const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, editProduct?: Product | null }) => {
+    const [product, setProduct] = useState<Partial<Product>>(editProduct || {
+      type: "Product",
+      status: "In Stock"
+    });
+    
+    const handleChange = (key: keyof Product, value: any) => {
+      setProduct(prev => ({ ...prev, [key]: value }));
+    };
+  
+    const handleSubmit = async () => {
+      await handleAddOrEditProduct(product);
+      onClose();
+    };
+  
+    return (
+      <div className="space-y-4">
+        <div className="form-group">
+          <label htmlFor="product-name" className="text-sm font-medium text-gray-700">
+            Product Name
+          </label>
+          <Input 
+            id="product-name" 
+            placeholder="Enter product name" 
+            value={product.name || ''}
+            onChange={(e) => handleChange('name', e.target.value)}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label className="text-sm font-medium text-gray-700">Type</label>
+          <div className="flex items-center space-x-4 mt-1">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="radio" 
+                checked={product.type === "Product"} 
+                onChange={() => handleChange('type', 'Product')}
+                className="form-radio h-4 w-4 text-blue-600"
+              />
+              <span>Product</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input 
+                type="radio" 
+                checked={product.type === "Raw Material"} 
+                onChange={() => handleChange('type', 'Raw Material')}
+                className="form-radio h-4 w-4 text-blue-600"
+              />
+              <span>Raw Material</span>
+            </label>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label htmlFor="product-category" className="text-sm font-medium text-gray-700">
+              Category
+            </label>
+            <Input 
+              id="product-category" 
+              placeholder="Category" 
+              value={product.category || ''}
+              onChange={(e) => handleChange('category', e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="product-price" className="text-sm font-medium text-gray-700">
+              Price (₹)
+            </label>
+            <Input 
+              id="product-price" 
+              type="number" 
+              placeholder="0.00" 
+              value={product.price || ''}
+              onChange={(e) => handleChange('price', parseFloat(e.target.value))}
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label htmlFor="product-stock" className="text-sm font-medium text-gray-700">
+              Stock Quantity
+            </label>
+            <Input 
+              id="product-stock" 
+              type="number" 
+              placeholder="0" 
+              value={product.stock || ''}
+              onChange={(e) => handleChange('stock', parseInt(e.target.value))}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="product-sku" className="text-sm font-medium text-gray-700">
+              SKU
+            </label>
+            <Input 
+              id="product-sku" 
+              placeholder="PRD-001" 
+              value={product.id || ''}
+              onChange={(e) => handleChange('id', e.target.value)}
+            />
+          </div>
+        </div>
+        
+        {product.type === "Raw Material" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label htmlFor="min-stock-level" className="text-sm font-medium text-gray-700">
+                Minimum Stock Level
+              </label>
+              <Input 
+                id="min-stock-level" 
+                type="number" 
+                placeholder="0" 
+                value={product.minStockLevel || ''}
+                onChange={(e) => handleChange('minStockLevel', parseInt(e.target.value))}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="supplier-info" className="text-sm font-medium text-gray-700">
+                Supplier Information
+              </label>
+              <Input 
+                id="supplier-info" 
+                placeholder="Supplier name" 
+                value={product.supplierInfo || ''}
+                onChange={(e) => handleChange('supplierInfo', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+        
+        <div className="form-group">
+          <label htmlFor="product-image" className="text-sm font-medium text-gray-700">
+          Image URL
+          </label>
+          <Input 
+            id="product-image" 
+            placeholder="https://example.com/image.jpg" 
+            value={product.image || ''}
+            onChange={(e) => handleChange('image', e.target.value)}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="product-description" className="text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <textarea 
+            id="product-description" 
+            className="flex h-32 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            placeholder="Product description"
+            value={product.description || ''}
+            onChange={(e) => handleChange('description', e.target.value)}
+          ></textarea>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit}>Save Product</Button>
+        </DialogFooter>
+      </div>
+    );
+  };
+
+  if (loading) return <FuturisticLoader />;
 
   return (
     <Layout>
@@ -522,8 +582,11 @@ const Products = () => {
                               <DropdownMenuItem className="flex items-center" onClick={() => handleEditProduct(product)}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center text-red-600">
-                                <Trash className="mr-2 h-4 w-4" /> Delete
+                              <DropdownMenuItem 
+                                className="flex items-center text-red-600"
+                                onClick={() => handleDeleteProduct(product.id)}
+                              >
+                                <Trash className="mr-2 h-4 w-4" /> {deletingId === product.id ? "Deleting..." : "Delete"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

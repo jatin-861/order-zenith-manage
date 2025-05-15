@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,48 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+const ADMIN_USERNAME = "hmeinventory";
+const ADMIN_PASSWORD = "12345678";
+
 const AdminLogin = () => {
   const [username, setUsername] = useState("");
+  const [registerMode, setRegisterMode] = useState(false);
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const isValidPassword = (pw: string) => pw.length >= 8;
+
+  // Register admin user if not present
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidPassword(password)) {
+      toast({ title: "Weak Password", description: "Password must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    const passHash = await hashPassword(password);
+    // Only support one admin registration for now
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .single();
+
+    if (user) {
+      toast({ title: "Account Exists", description: "Admin already registered. Please login." });
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from("users")
+      .insert({ username, password_hash: passHash });
+    if (insertError) {
+      toast({ title: "Registration Error", description: insertError.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Account Created!", description: "Admin registered. Please login." });
+    setRegisterMode(false);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +74,6 @@ const AdminLogin = () => {
       });
       return;
     }
-    // Save admin session simply in localStorage
     localStorage.setItem("adminSession", "true");
     toast({
       title: "Login Success",
@@ -50,10 +85,12 @@ const AdminLogin = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <form
-        onSubmit={handleLogin}
+        onSubmit={registerMode ? handleRegister : handleLogin}
         className="w-full max-w-sm bg-white shadow rounded-md p-8 space-y-5"
       >
-        <h2 className="text-xl font-semibold text-center">Admin Login</h2>
+        <h2 className="text-xl font-semibold text-center">
+          {registerMode ? "Admin Registration" : "Admin Login"}
+        </h2>
         <Input
           autoFocus
           placeholder="Username"
@@ -62,11 +99,28 @@ const AdminLogin = () => {
         />
         <Input
           type="password"
-          placeholder="Password"
+          placeholder="Password (min 8 chars)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <Button type="submit" className="w-full">Login</Button>
+        <Button type="submit" className="w-full">
+          {registerMode ? "Register" : "Login"}
+        </Button>
+        <div className="flex justify-center mt-2">
+          <Button
+            type="button"
+            variant="link"
+            className="text-xs"
+            onClick={() => setRegisterMode(!registerMode)}
+          >
+            {registerMode
+              ? "Already have an account? Login"
+              : "No account? Register"}
+          </Button>
+        </div>
+        <div className="mt-3 text-xs text-center text-muted-foreground">
+          Demo: <b>hmeinventory</b> / <b>12345678</b>
+        </div>
       </form>
     </div>
   );

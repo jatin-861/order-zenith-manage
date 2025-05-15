@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
@@ -21,8 +20,26 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useEffect } from "react";
 
 const Settings = () => {
+  // Theme logic
+  useEffect(() => {
+    // Read from local storage
+    const storedTheme = localStorage.getItem("theme");
+    if (storedTheme) {
+      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.add(storedTheme);
+    }
+  }, []);
+
+  const handleThemeChange = (selected: string) => {
+    const set = selected.toLowerCase();
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(set);
+    localStorage.setItem("theme", set);
+  };
+
   return (
     <Layout>
       <div className="mb-6">
@@ -104,10 +121,14 @@ const Settings = () => {
                     <h3 className="text-sm font-medium mb-2">Theme</h3>
                     <div className="flex items-center space-x-2 rounded-md border p-2">
                       <div className="flex-1">
-                        <select className="w-full bg-transparent border-0 outline-none focus:ring-0">
-                          <option>Light</option>
-                          <option>Dark</option>
-                          <option>System</option>
+                        <select
+                          className="w-full bg-transparent border-0 outline-none focus:ring-0"
+                          defaultValue={localStorage.getItem("theme") || "light"}
+                          onChange={e => handleThemeChange(e.target.value)}
+                        >
+                          <option value="light">Light</option>
+                          <option value="dark">Dark</option>
+                          <option value="system">System</option>
                         </select>
                       </div>
                     </div>

@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,11 +23,28 @@ import InvoiceForm from "@/components/invoice/InvoiceForm";
 import InvoiceList from "@/components/invoice/InvoiceList";
 import InvoiceAlert from "@/components/invoice/InvoiceAlert";
 import { sampleInvoices } from "@/utils/invoiceUtils";
+import FuturisticLoader from "@/components/Loader";
+import { supabase } from "@/integrations/supabase/client";
 
 const Invoices = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const { toast } = useToast();
+  const [productOptions, setProductOptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load products for invoice selection
+    async function fetchProducts() {
+      setLoading(true);
+      const { data: products } = await supabase.from("products").select("*");
+      setProductOptions(products || []);
+      setLoading(false);
+    }
+    fetchProducts();
+  }, []);
+
+  if (loading) return <FuturisticLoader />;
 
   const filteredInvoices = sampleInvoices.filter(invoice => 
     invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,7 +78,7 @@ const Invoices = () => {
                 Create New Invoice
               </DialogTitle>
             </DialogHeader>
-            <InvoiceForm onClose={() => setOpenDialog(false)} />
+            <InvoiceForm onClose={() => setOpenDialog(false)} products={productOptions} />
           </DialogContent>
         </Dialog>
       </div>
