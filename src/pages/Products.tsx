@@ -266,7 +266,8 @@ const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, edi
 };
 
 const Products = () => {
-  const { products: filteredProducts, setProducts, loading } = useSupabaseProducts();
+  // --- We rename from { products: filteredProducts, ... } to { products, ... }
+  const { products, setProducts, loading } = useSupabaseProducts();
   const [searchTerm, setSearchTerm] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "products" | "materials" | "low-stock">("all");
@@ -276,8 +277,8 @@ const Products = () => {
   // Only allow admin add/edit/delete if admin session exists:
   const isAdmin = localStorage.getItem("adminSession") === "true";
 
-  // Filter products based on search term and active tab
-  const filteredProducts = filteredProducts.filter(product => {
+  // This is now our computed list, avoiding redeclaration problem
+  const filteredProducts = products.filter(product => {
     // Text search
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -295,7 +296,6 @@ const Products = () => {
         return matchesSearch && (product.status === "Low Stock" || product.status === "Out of Stock");
       }
     }
-    
     return matchesSearch;
   });
 
