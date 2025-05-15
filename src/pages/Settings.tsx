@@ -40,6 +40,11 @@ const Settings = () => {
     localStorage.setItem("theme", set);
   };
 
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    localStorage.setItem("currency", e.target.value);
+    window.dispatchEvent(new Event("storage"));
+  };
+
   return (
     <Layout>
       <div className="mb-6">
@@ -92,11 +97,15 @@ const Settings = () => {
                     <h3 className="text-sm font-medium mb-2">Currency</h3>
                     <div className="flex items-center space-x-2 rounded-md border p-2">
                       <div className="flex-1">
-                        <select className="w-full bg-transparent border-0 outline-none focus:ring-0">
-                          <option>₹ - Indian Rupee (INR)</option>
-                          <option>$ - US Dollar (USD)</option>
-                          <option>€ - Euro (EUR)</option>
-                          <option>£ - British Pound (GBP)</option>
+                        <select
+                          className="w-full bg-transparent border-0 outline-none focus:ring-0"
+                          value={localStorage.getItem("currency") || "INR"}
+                          onChange={handleCurrencyChange}
+                        >
+                          <option value="INR">₹ - Indian Rupee (INR)</option>
+                          <option value="USD">$ - US Dollar (USD)</option>
+                          <option value="EUR">€ - Euro (EUR)</option>
+                          <option value="GBP">£ - British Pound (GBP)</option>
                         </select>
                       </div>
                     </div>

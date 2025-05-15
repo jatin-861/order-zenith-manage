@@ -34,7 +34,6 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load products for invoice selection
     async function fetchProducts() {
       setLoading(true);
       const { data: products } = await supabase.from("products").select("*");
@@ -78,7 +77,7 @@ const Invoices = () => {
                 Create New Invoice
               </DialogTitle>
             </DialogHeader>
-            <InvoiceForm onClose={() => setOpenDialog(false)} products={productOptions} />
+            <InvoiceForm onClose={() => setOpenDialog(false)} />
           </DialogContent>
         </Dialog>
       </div>

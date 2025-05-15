@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
@@ -27,12 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Tabs, TabsContent, TabsList, TabsTrigger
+} from "@/components/ui/tabs";
 import { 
   Package, 
   Search, 
@@ -41,23 +38,18 @@ import {
   Trash, 
   Plus,
   ArrowUpDown,
-  X,
-  Check,
   AlertCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import FuturisticLoader from "@/components/Loader";
 import { rawMaterialNames } from "@/utils/productUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from 'uuid';
 
 interface Product {
   id: string;
   name: string;
-  category: string;
   price: number;
   stock: number;
   status: "In Stock" | "Low Stock" | "Out of Stock";
@@ -68,61 +60,81 @@ interface Product {
   supplierInfo?: string;
 }
 
-// Util for random stock
-function randomStock() { return Math.floor(Math.random() * 80) + 10; }
+// Currency conversion
+const EXCHANGE_RATES: Record<string, number> = {
+  INR: 1,
+  USD: 1 / 83,
+  EUR: 1 / 90,
+  GBP: 1 / 105
+};
+const CURRENCY_SYMBOL: Record<string, string> = {
+  INR: "₹",
+  USD: "$",
+  EUR: "€",
+  GBP: "£"
+};
 
-// Get full HEATMAX product list (simulate for now)
+function randomStock() { return Math.floor(Math.random() * 80) + 10; }
+function randomPrice() { return Math.floor(Math.random() * 4000) + 500; }
+
 const HEATMAX_PRODUCTS = [
-  { name: "Steam Boiler", category: "Boiler" },
-  { name: "Thermic Fluid Heater", category: "Heater" },
-  { name: "Heat Exchanger", category: "Heat Equipment" },
-  { name: "Hot Air Generator", category: "Generator" },
-  { name: "Hot Water Boiler", category: "Boiler" },
-  { name: "Industrial Burner", category: "Burner" },
-  { name: "Furnace", category: "Furnace" },
-  // ... extend for each Heatmax.in product as you need
+  { name: "Steam Boiler" },
+  { name: "Thermic Fluid Heater" },
+  { name: "Heat Exchanger" },
+  { name: "Hot Air Generator" },
+  { name: "Hot Water Boiler" },
+  { name: "Industrial Burner" },
+  { name: "Furnace" },
+  { name: "Oil Heater" },
+  { name: "Gas Fired Heater" },
+  { name: "Agro Waste Fired Boiler" },
 ];
 
-// Updated: useSupabaseProducts hook
 function useSupabaseProducts() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAndSeed = async () => {
       setLoading(true);
-      let { data: dbProducts, error } = await supabase.from("products").select("*");
+      let { data: dbProducts } = await supabase.from("products").select("*");
 
+      // If products not seeded, insert
       if (!dbProducts || dbProducts.length === 0) {
-        // Prepare raw materials (from prop & utility)
+        // Seed raw materials
         const rawMaterials = rawMaterialNames.map(name => ({
+          id: uuidv4(),
           name,
-          category: "Raw Material",
-          price: 0,
+          price: randomPrice(),
           stock: randomStock(),
           min_stock_level: 5,
-          type: "Raw Material",
+          type: "Raw Material"
         }));
-
-        // Prepare heatmax.in products (sampled above)
-        const heatmaxProducts = HEATMAX_PRODUCTS.map(p => ({
+        // Seed products
+        const heatmaxProds = HEATMAX_PRODUCTS.map(p => ({
+          id: uuidv4(),
           name: p.name,
-          category: p.category,
-          price: Math.floor(Math.random() * 50000) + 8000, // random price
+          price: randomPrice(),
           stock: randomStock(),
           min_stock_level: 10,
-          type: "Product",
+          type: "Product"
         }));
-
-        const allSeed = [...rawMaterials, ...heatmaxProducts];
-
+        // Map to DB columns, dropping category/type for insertion (not in DB)
+        const allSeed = [...rawMaterials, ...heatmaxProds].map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          min_stock_level: p.min_stock_level,
+        }));
         await supabase.from("products").insert(allSeed);
         dbProducts = (await supabase.from("products").select("*")).data;
       }
-      // Add 'type' to classify legacy products
+      // Add type based on min_stock_level/key
       setProducts((dbProducts || []).map(p => ({
         ...p,
-        type: p.category === "Raw Material" ? "Raw Material" : "Product"
+        type: (p.min_stock_level && p.min_stock_level <= 5) ? "Raw Material" : "Product",
+        status: "In Stock" // Default for UI
       })));
       setLoading(false);
     };
@@ -131,7 +143,6 @@ function useSupabaseProducts() {
   return { products, setProducts, loading };
 }
 
-// PRODUCT CRUD
 const Products = () => {
   const { products, setProducts, loading } = useSupabaseProducts();
   const [searchTerm, setSearchTerm] = useState("");
@@ -140,36 +151,47 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
+  const [currency, setCurrency] = useState("INR");
   const isAdmin = localStorage.getItem("adminSession") === "true";
 
-  // Add new product
+  // When currency changes in settings, auto-update here (simulate)
+  useEffect(() => {
+    const onStorage = () => setCurrency(localStorage.getItem("currency") || "INR");
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const handleAddOrEditProduct = async (values: Partial<Product>) => {
-    if (!values.name || !values.category) {
-      toast({ title: "Invalid", description: "Name and Category required", variant: "destructive" }); return;
+    if (!values.name) {
+      toast({ title: "Invalid", description: "Name required", variant: "destructive" }); return;
     }
     let result;
     if (editingProduct) {
       result = await supabase.from("products").update({
-        ...values,
-        type: values.category === "Raw Material" ? "Raw Material" : "Product",
+        name: values.name,
+        price: values.price ?? 0,
+        stock: values.stock ?? 0,
+        min_stock_level: values.type === "Raw Material" ? values.minStockLevel ?? 5 : 10,
+        // "type" not in db
       }).eq("id", editingProduct.id).select();
       toast({ title: "Product Updated" });
     } else {
       result = await supabase.from("products").insert([{
-        ...values,
-        type: values.category === "Raw Material" ? "Raw Material" : "Product",
+        id: uuidv4(),
+        name: values.name,
+        price: values.price ?? randomPrice(),
+        stock: values.stock ?? randomStock(),
+        min_stock_level: values.type === "Raw Material" ? values.minStockLevel ?? 5 : 10,
       }]).select();
       toast({ title: "Product Added" });
     }
     if (!result.error) {
-      setProducts(await (await supabase.from("products").select("*")).data);
+      setProducts(await (await supabase.from("products").select("*")).data ?? []);
       setOpenDialog(false);
       setEditingProduct(null);
     }
   };
 
-  // Delete product
   const handleDeleteProduct = async (pid: string) => {
     setDeletingId(pid);
     await supabase.from("products").delete().eq("id", pid);
@@ -178,91 +200,37 @@ const Products = () => {
     toast({ title: "Product Deleted" });
   };
 
-  // Filter logic
-  const filteredProducts = products.filter(product => {
+  // Tab filters
+  const filtered = products.filter(product => {
     const matchesSearch =
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.id?.toLowerCase().includes(searchTerm.toLowerCase());
-
     if (activeTab === "all") return matchesSearch;
     if (activeTab === "products") return matchesSearch && product.type === "Product";
     if (activeTab === "materials") return matchesSearch && product.type === "Raw Material";
-    if (activeTab === "low-stock") {
-      if (product.type === "Raw Material") return matchesSearch && (product.stock <= (product.min_stock_level || 0));
-      else return matchesSearch && (product.stock <= (product.min_stock_level || 0));
-    }
+    if (activeTab === "low-stock") return matchesSearch && product.stock <= (product.minStockLevel || 10);
     return matchesSearch;
   });
 
-  const lowStockCount = filteredProducts.filter(product => {
-    if (product.type === "Raw Material") {
-      return product.stock <= (product.minStockLevel || 0);
-    } else {
-      return product.status === "Low Stock" || product.status === "Out of Stock";
-    }
-  }).length;
-
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setOpenDialog(true);
-  };
-
-  const getStatusBadge = (product: Product) => {
-    if (product.type === "Raw Material" && product.minStockLevel && product.stock <= product.minStockLevel) {
-      return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Low Stock</Badge>;
-    }
-    
-    switch (product.status) {
-      case "In Stock":
-        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>;
-      case "Low Stock":
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Low Stock</Badge>;
-      case "Out of Stock":
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Out of Stock</Badge>;
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "low-stock" && lowStockCount > 0) {
-      toast({
-        title: "Low Stock Alert",
-        description: `${lowStockCount} items need to be ordered soon.`,
-        variant: "destructive"
-      });
-    }
-  }, [activeTab]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: "Search Results",
-      description: `Found ${filteredProducts.length} product(s) matching "${searchTerm}"`,
-    });
-  };
-
-  const generatePDF = () => {
-    toast({
-      title: "PDF Generated",
-      description: "Low stock items report has been generated",
-    });
-  };
+  const lowStockCount = filtered.filter(product => product.stock <= (product.minStockLevel || 10)).length;
 
   const ProductForm = ({ onClose, editProduct = null }: { onClose: () => void, editProduct?: Product | null }) => {
-    const [product, setProduct] = useState<Partial<Product>>(editProduct || {
-      type: "Product",
-      status: "In Stock"
-    });
-    
+    const [product, setProduct] = useState<Partial<Product>>(editProduct
+      ? {
+        ...editProduct,
+        minStockLevel: editProduct.minStockLevel ?? (editProduct.type === "Raw Material" ? 5 : 10)
+      }
+      : { type: "Product", status: "In Stock" });
+
     const handleChange = (key: keyof Product, value: any) => {
       setProduct(prev => ({ ...prev, [key]: value }));
     };
-  
+
     const handleSubmit = async () => {
       await handleAddOrEditProduct(product);
       onClose();
     };
-  
+
     return (
       <div className="space-y-4">
         <div className="form-group">
@@ -276,7 +244,6 @@ const Products = () => {
             onChange={(e) => handleChange('name', e.target.value)}
           />
         </div>
-        
         <div className="form-group">
           <label className="text-sm font-medium text-gray-700">Type</label>
           <div className="flex items-center space-x-4 mt-1">
@@ -300,59 +267,30 @@ const Products = () => {
             </label>
           </div>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="form-group">
-            <label htmlFor="product-category" className="text-sm font-medium text-gray-700">
-              Category
+            <label className="text-sm font-medium text-gray-700">
+              Price ({CURRENCY_SYMBOL[currency]})
             </label>
             <Input 
-              id="product-category" 
-              placeholder="Category" 
-              value={product.category || ''}
-              onChange={(e) => handleChange('category', e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="product-price" className="text-sm font-medium text-gray-700">
-              Price (₹)
-            </label>
-            <Input 
-              id="product-price" 
               type="number" 
               placeholder="0.00" 
               value={product.price || ''}
               onChange={(e) => handleChange('price', parseFloat(e.target.value))}
             />
           </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="form-group">
-            <label htmlFor="product-stock" className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-700">
               Stock Quantity
             </label>
             <Input 
-              id="product-stock" 
               type="number" 
               placeholder="0" 
               value={product.stock || ''}
               onChange={(e) => handleChange('stock', parseInt(e.target.value))}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="product-sku" className="text-sm font-medium text-gray-700">
-              SKU
-            </label>
-            <Input 
-              id="product-sku" 
-              placeholder="PRD-001" 
-              value={product.id || ''}
-              onChange={(e) => handleChange('id', e.target.value)}
-            />
-          </div>
         </div>
-        
         {product.type === "Raw Material" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
@@ -380,10 +318,9 @@ const Products = () => {
             </div>
           </div>
         )}
-        
         <div className="form-group">
           <label htmlFor="product-image" className="text-sm font-medium text-gray-700">
-          Image URL
+            Image URL
           </label>
           <Input 
             id="product-image" 
@@ -392,7 +329,6 @@ const Products = () => {
             onChange={(e) => handleChange('image', e.target.value)}
           />
         </div>
-        
         <div className="form-group">
           <label htmlFor="product-description" className="text-sm font-medium text-gray-700">
             Description
@@ -405,7 +341,6 @@ const Products = () => {
             onChange={(e) => handleChange('description', e.target.value)}
           ></textarea>
         </div>
-        
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
@@ -416,7 +351,7 @@ const Products = () => {
     );
   };
 
-  if (loading) return <FuturisticLoader />;
+  if (loading) return <div className="flex justify-center p-10 text-xl text-blue-600 font-bold">Loading products...</div>;
 
   return (
     <Layout>
@@ -486,7 +421,7 @@ const Products = () => {
         <Card>
           <div className="p-4 border-b">
             <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-              <form onSubmit={handleSearch} className="relative w-full md:max-w-sm flex">
+              <form className="relative w-full md:max-w-sm flex" onSubmit={e => { e.preventDefault(); }}>
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
                   type="search"
@@ -498,9 +433,6 @@ const Products = () => {
                 <Button type="submit" className="ml-2">Search</Button>
               </form>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={generatePDF}>
-                  Export PDF
-                </Button>
                 <Button variant="outline" size="sm">
                   Print
                 </Button>
@@ -519,7 +451,6 @@ const Products = () => {
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
                   </TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
@@ -528,8 +459,8 @@ const Products = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
+                {filtered.length > 0 ? (
+                  filtered.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.id}</TableCell>
                       <TableCell>
@@ -549,7 +480,6 @@ const Products = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{product.category}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
                           product.type === "Product" 
@@ -559,7 +489,9 @@ const Products = () => {
                           {product.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">₹{product.price.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {CURRENCY_SYMBOL[currency]}{(product.price * EXCHANGE_RATES[currency]).toLocaleString()}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end">
                           <span>{product.stock}</span>
@@ -568,7 +500,12 @@ const Products = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(product)}</TableCell>
+                      <TableCell>
+                        {product.stock <= (product.minStockLevel || 10)
+                          ? <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Low Stock</Badge>
+                          : <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>
+                        }
+                      </TableCell>
                       <TableCell>
                         {isAdmin && (
                           <DropdownMenu>
@@ -579,7 +516,7 @@ const Products = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem className="flex items-center" onClick={() => handleEditProduct(product)}>
+                              <DropdownMenuItem className="flex items-center" onClick={() => { setEditingProduct(product); setOpenDialog(true); }}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem 
@@ -596,7 +533,7 @@ const Products = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No products found.
                     </TableCell>
                   </TableRow>
